@@ -45,8 +45,9 @@ async def researcher_node(state: ResearchState) -> ResearchState:
     tasks = [web_search(q, queue, search_tool) for q in state["sub_questions"]]
     search_results = await asyncio.gather(*tasks)
     
-    all_sources = [item for sublist in search_results for item in sublist]
- 
+    new_sources = [item for sublist in search_results for item in sublist]
+    all_sources = state.get("raw_sources", []) + new_sources
+    
     await emit(queue, {
         "type": "thinking",
         "agent": "researcher",

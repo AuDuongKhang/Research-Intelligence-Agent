@@ -677,6 +677,8 @@ async def test_run_research_with_sources_pdf_mode():
 
             events_collected = []
             async for line in run_research_with_sources(TEST_QUERY, preloaded):
+                if not line.strip() or line.startswith(":"):
+                    continue
                 assert line.startswith("data: "), f"Bad SSE format: {line}"
                 events_collected.append(json.loads(line[6:]))
 
@@ -795,6 +797,8 @@ async def test_full_pipeline_live():
 
     try:
         async for raw in run_research(TEST_QUERY):
+            if not raw.strip() or raw.startswith(":"):
+                continue
             assert raw.startswith("data: "), f"Bad SSE line: {raw}"
             event = json.loads(raw[6:])
             etype = event.get("type", "unknown")
