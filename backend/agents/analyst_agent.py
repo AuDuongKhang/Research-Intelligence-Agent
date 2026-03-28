@@ -69,6 +69,7 @@ Return ONLY the JSON object. No markdown, no explanation."""
             })
 
     await emit(queue, {
+        "agent": "analyst",
         "type": "artifact",
         "kind": "citation_list",
         "title": "Verified Sources",

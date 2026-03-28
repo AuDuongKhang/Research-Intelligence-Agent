@@ -51,12 +51,14 @@ Requirements:
         if text:
             full_report += text
             await emit(queue, {
+                "agent": "writer",
                 "type": "result",
                 "content": text,
                 "is_final": False
             })
 
     await emit(queue, {
+        "agent": "writer",
         "type": "result",
         "content": "",
         "is_final": True

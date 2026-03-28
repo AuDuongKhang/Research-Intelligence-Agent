@@ -1,2 +1,7 @@
 backend/.env
 frontend/app/api/chat/.env
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

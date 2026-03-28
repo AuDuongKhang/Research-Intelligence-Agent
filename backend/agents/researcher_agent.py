@@ -6,12 +6,12 @@ from tools.tavily_tool import get_search_tool
 # ── Web search for each sub-question ─────────────────────
 async def web_search(question, queue, search_tool):
     await emit(queue, {"type": "thinking", "agent": "researcher", "content": f"Searching: '{question}'"})
-    await emit(queue, {"type": "tool_call", "tool": "tavily_search", "params": {"query": question}, "status": "running"})
+    await emit(queue, {"type": "tool_call", "agent": "researcher", "tool": "tavily_search", "params": {"query": question}, "status": "running"})
         
     try:
-        tool_msg = search_tool.invoke({"query": question})
+        tool_msg = await search_tool.ainvoke({"query": question})
         results = tool_msg.get("results", [])
-        await emit(queue, {"type": "tool_call", "tool": "tavily_search", "params": {"query": question}, "status": "done", "result_preview": f"Found {len(results)} sources"})
+        await emit(queue, {"type": "tool_call", "agent": "researcher", "tool": "tavily_search", "params": {"query": question}, "status": "done", "result_preview": f"Found {len(results)} sources"})
         return [{
             "question": question,
             "title": r.get("title", "Untitled"),
@@ -20,7 +20,7 @@ async def web_search(question, queue, search_tool):
             "score": r.get("score", 0),
         } for r in results]
     except Exception as e:
-        await emit(queue, {"type": "tool_call", "tool": "tavily_search", "params": {"query": question}, "status": "error", "result_preview": str(e)})
+        await emit(queue, {"type": "tool_call", "agent": "researcher", "tool": "tavily_search", "params": {"query": question}, "status": "error", "result_preview": str(e)})
         return []
 
 
