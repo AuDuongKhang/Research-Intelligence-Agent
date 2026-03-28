@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import re
+import yaml
 from typing import TypedDict, AsyncGenerator
 from dotenv import load_dotenv
 
@@ -17,6 +18,24 @@ load_dotenv()
 #   qwen/qwen3-32b
 #   openai/gpt-oss-20b
 #   openai/gpt-oss-120b
+
+# def load_params():
+#     with open("params.yaml", "r", encoding="utf-8") as f:
+#         return yaml.safe_load(f)
+
+# PARAMS = load_params()
+
+# def get_llm(temperature=None, model_key="default"):
+#     model_id = PARAMS["models"].get(model_key, PARAMS["models"]["writer"])
+#     temp = temperature or PARAMS["models"]["temperatures"]["default"]
+    
+#     return ChatGroq(
+#         model=model_id,
+#         temperature=temp,
+#         groq_api_key=os.getenv("GROQ_API_KEY"),
+#         streaming=True,
+#     )
+
 
 def get_llm(temperature: float = 0.3, model: str | None = None):
     return ChatGroq(

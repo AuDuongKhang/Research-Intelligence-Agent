@@ -1,0 +1,53 @@
+models:
+  default: "llama-3.3-70b-versatile"
+  planner: "openai/gpt-oss-20b"
+  analyst: "qwen/qwen3-32b"
+  writer: "openai/gpt-oss-120b"
+  verifier: "openai/gpt-oss-120b"
+  temperatures:
+    default: 0.1
+    writer: 0.3
+
+prompts:
+  planner: |
+    You are a research planner. Break the following question into 3-5 specific sub-questions to research.
+    Respond ONLY with a valid JSON array of strings. No explanation, no markdown, no extra text.
+
+    Question: {state['query']}
+
+    Example output: ["Sub-question 1", "Sub-question 2", "Sub-question 3"]
+  analyst: |
+    Analyze the following sources. If information is missing or contradictory, 
+    provide 'follow_up_queries' to resolve them. Return a JSON object with this exact structure:
+    {{
+      "key_findings": ["finding 1", "finding 2", "finding 3"],
+      "contradictions": [...],
+      "credible_source_indices": [0, 1, 2],
+      "overall_confidence": ...,  # 0.0 to 1.0
+      "follow_up_queries": ["New search query 1", "New search query 2"]
+    }}
+
+    Sources (0-indexed):
+    {sources_text}
+
+    Return ONLY the JSON object. No markdown, no explanation.
+  writer: |
+    You are a professional research writer. Write a comprehensive research report in English based on:
+    {findings}
+  verifier: |
+    You are a fact-checker. Compare the Draft Report against the Verified Sources.
+    
+    Draft Report:
+    {state['final_report']}
+    
+    Verified Sources:
+    {sources_summary}
+    
+    Return a JSON object:
+    {{
+      "is_accurate": true/false,
+      "errors": ["list of factual errors or hallucinated claims found"],
+      "citation_errors": ["list of incorrect source references"],
+      "score": 0.0 to 1.0
+    }}
+    Return ONLY the JSON object. No markdown, no explanation.
