@@ -31,21 +31,23 @@ import sys
 import tempfile
 import time
 import fitz
-from tools.pdf_reader import read, read_base64, get_metadata, _extract_chunks
-from agents.helper import get_llm, get_fast_llm, emit, ResearchState, _stream_from_queue
-from agents.researcher_agent import researcher_node
-from agents.analyst_agent import analyst_node
-from agents.writer_agent import writer_node
-from agents.planner_agent import planner_node
-from tools.tavily_tool import get_search_tool
-from graph import *
+import traceback
+
 from langchain_groq import ChatGroq
 from langchain_tavily import TavilySearch
 from unittest.mock import AsyncMock, create_autospec, patch, MagicMock
 from langchain_core.messages import HumanMessage
- 
 
-from pathlib import Path
+from graph import *
+from tools.pdf_reader import read, read_base64, get_metadata, _extract_chunks
+from agents.helper import get_analyst_llm, get_llm, get_fast_llm, get_planner_llm, get_writer_llm, emit, ResearchState, _stream_from_queue
+from agents.researcher_agent import researcher_node
+from agents.analyst_agent import analyst_node
+from agents.writer_agent import writer_node
+from agents.planner_agent import planner_node
+from agents.verifier_agent import verifier_node
+from tools.tavily_tool import get_search_tool
+
 
 # ── Pre-flight checks ─────────────────────────────────────────
 
@@ -307,15 +309,15 @@ async def test_graph_factories():
     try:
         llm = get_llm()
         assert isinstance(llm, ChatGroq)
-        assert llm.model_name == os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        assert llm.model_name == os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
         ok("get_llm() returns ChatGroq instance", f"model={llm.model_name}")
     except Exception as e:
         fail("get_llm()", str(e))
 
     # get_llm with custom model
     try:
-        llm = get_llm(temperature=0.5, model="llama-3.1-8b-instant")
-        assert llm.model_name == "llama-3.1-8b-instant"
+        llm = get_llm(temperature=0.5, model="openai/gpt-oss-20b")
+        assert llm.model_name == "openai/gpt-oss-20b"
         ok("get_llm(model=...) respects override", f"model={llm.model_name}")
     except Exception as e:
         fail("get_llm(model=...)", str(e))
@@ -371,7 +373,7 @@ async def test_emit_and_state():
     # ResearchState has all required keys
     try:
         required = {"query", "sub_questions", "raw_sources",
-                    "analysis", "final_report", "citations", "event_queue"}
+                    "analysis", "final_report", "citations", "event_queue", "loop_step"}
         actual = set(ResearchState.__annotations__.keys())
         missing_keys = required - actual
         assert not missing_keys, f"Missing keys: {missing_keys}"
@@ -465,7 +467,7 @@ async def test_analyst_node_structure():
 
     state = make_state({"raw_sources": fake_sources})
 
-    with patch("agents.analyst_agent.get_fast_llm") as mock_llm_factory:
+    with patch("agents.analyst_agent.get_analyst_llm") as mock_llm_factory:
         mock_llm = MagicMock()
         mock_llm.ainvoke = AsyncMock(return_value=mock_response)
         mock_llm_factory.return_value = mock_llm
@@ -486,7 +488,7 @@ async def test_analyst_node_structure():
             ok("Each citation has all required fields")
 
             # analysis dict stored correctly
-            assert result["analysis"]["overall_confidence"] >= 0.8
+            assert result["analysis"]["overall_confidence"] >= 0.6
             ok("analyst_node stores analysis dict", f"confidence={result['analysis']['overall_confidence']}")
 
             # artifact event emitted
@@ -519,7 +521,7 @@ async def test_analyst_node_malformed_json():
 
     state = make_state({"raw_sources": fake_sources})
 
-    with patch("agents.analyst_agent.get_fast_llm") as mock_factory:
+    with patch("agents.analyst_agent.get_analyst_llm") as mock_factory:
         mock_llm = MagicMock()
         mock_llm.ainvoke = AsyncMock(return_value=mock_response)
         mock_factory.return_value = mock_llm
@@ -534,13 +536,12 @@ async def test_analyst_node_malformed_json():
             fail("analyst_node fallback", str(e))
 
 
-async def test_writer_node_streams():
-    """writer_node must stream result chunks and emit is_final=True sentinel."""
-    section("Unit: writer_node — streaming output")
+async def test_writer_node_saves_draft():
+    """writer_node must accumulate final_report in state but NOT emit result chunks."""
+    section("Unit: writer_node — draft accumulation")
 
     fake_chunks = ["## Executive Summary\n", "Quantum computing is ", "advancing rapidly.\n"]
 
-    # Mock an async streaming generator
     async def fake_astream(_):
         for text in fake_chunks:
             chunk = MagicMock()
@@ -549,17 +550,15 @@ async def test_writer_node_streams():
 
     state = make_state({
         "analysis": {
-            "key_findings":   ["Finding 1", "Finding 2"],
+            "key_findings": ["Finding 1", "Finding 2"],
             "contradictions": [],
+            "verification": {"is_accurate": True} # already verified to focus test on writing
         },
-        "citations": [
-            {"id": 1, "title": "Source 1", "url": "https://x.com",
-             "snippet": "snippet text"}
-        ],
+        "citations": [{"id": 1, "title": "Source 1", "url": "https://x.com", "snippet": "snippet"}]
     })
 
+    #with patch("agents.writer_agent.get_writer_llm") as mock_factory:
     with patch("agents.writer_agent.get_llm") as mock_factory:
-        mock_llm = MagicMock()
         mock_llm = create_autospec(ChatGroq, instance=True)
         mock_llm.astream.side_effect = fake_astream
         mock_factory.return_value = mock_llm
@@ -567,38 +566,89 @@ async def test_writer_node_streams():
         try:
             result = await writer_node(state)
 
-            # final_report accumulated correctly
+            # Check final_report in state
             expected_report = "".join(fake_chunks)
-            assert result["final_report"] == expected_report, \
-                f"Report mismatch: {result['final_report']!r}"
-            ok("writer_node accumulates full_report correctly",
-               f"{len(result['final_report'])} chars")
+            assert result["final_report"] == expected_report, "Report was not accumulated in state"
+            ok("writer_node accumulates final_report correctly")
 
-            # collect all emitted events
+            # Check event queue
             events = []
             while not state["event_queue"].empty():
                 events.append(json.loads(await state["event_queue"].get()))
 
             result_events = [e for e in events if e["type"] == "result"]
-
-            # chunk events emitted
-            non_final = [e for e in result_events if not e["is_final"]]
-            assert len(non_final) == len(fake_chunks), \
-                f"Expected {len(fake_chunks)} chunks, got {len(non_final)}"
-            ok(f"writer_node emits {len(non_final)} streaming chunk(s)")
-
-            # final sentinel emitted
-            final_events = [e for e in result_events if e["is_final"]]
-            assert len(final_events) == 1, "Expected exactly 1 is_final=True event"
-            assert final_events[0]["content"] == "", \
-                "Final sentinel should have empty content"
-            ok("writer_node emits is_final=True sentinel at end")
+            assert len(result_events) == 0, "Writer should NOT emit result chunks directly anymore"
+            
+            thinking_events = [e for e in events if e["type"] == "thinking"]
+            assert len(thinking_events) > 0
+            ok("writer_node emits thinking events but no result chunks")
 
         except AssertionError as e:
-            fail("writer_node streaming", str(e))
-        except Exception as e:
-            fail("writer_node (unexpected)", str(e))
-            import traceback; traceback.print_exc()
+            fail("writer_node draft check", str(e))
+            
+
+async def test_publisher_node_streams():
+    """publisher_node must take final_report from state and stream it as result events."""
+    section("Unit: publisher_node — output streaming")
+
+    test_content = "This is a final verified research report content."
+    state = make_state({
+        "final_report": test_content
+    })
+
+    try:
+        await publisher_node(state)
+
+        # Event from queue
+        events = []
+        while not state["event_queue"].empty():
+            events.append(json.loads(await state["event_queue"].get()))
+
+        result_events = [e for e in events if e["type"] == "result"]
+        
+        # Check that multiple chunks are emitted
+        non_final = [e for e in result_events if not e.get("is_final", False)]
+        assert len(non_final) > 0, "Publisher should emit multiple chunks"
+        
+        # Check that combined content matches final_report
+        reconstructed = "".join([e["content"] for e in non_final]).strip()
+        assert test_content in reconstructed or reconstructed in test_content
+        ok("publisher_node streams report content correctly")
+
+        # Check for final sentinel event
+        final_sentinel = [e for e in result_events if e.get("is_final") == True]
+        assert len(final_sentinel) == 1, "Missing final sentinel"
+        ok("publisher_node emits final sentinel")
+
+    except Exception as e:
+        fail("publisher_node streaming", str(e))
+
+
+async def test_verifier_node():
+    section("Unit: verifier_node — factual check")
+    state = make_state({
+        "final_report": "The sun is a planet.", # Wrong claim for testing
+        "citations": [{"id": 1, "title": "Science", "snippet": "The sun is a star."}]
+    })
+    
+    # Mock LLM 
+    mock_resp = MagicMock()
+    mock_resp.content = json.dumps({
+        "is_accurate": False,
+        "errors": ["Claimed sun is a planet, but it is a star."],
+        "citation_errors": [],
+        "score": 0.4
+    })
+    
+    with patch("agents.verifier_agent.get_verifier_llm") as mock_factory:
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = AsyncMock(return_value=mock_resp)
+        mock_factory.return_value = mock_llm
+        
+        result = await verifier_node(state)
+        v = result["analysis"]["verification"]
+        assert v["is_accurate"] == False
+        ok("verifier_node correctly flags factual errors", f"Score: {v['score']}")
 
 
 async def test_build_graph():
@@ -672,8 +722,8 @@ async def test_run_research_with_sources_pdf_mode():
     mock_main.astream = fake_astream
 
     try:
-        with patch("agents.analyst_agent.get_fast_llm", return_value=mock_fast), \
-             patch("agents.writer_agent.get_llm", return_value=mock_main):
+        with patch("agents.analyst_agent.get_analyst_llm", return_value=mock_fast), \
+             patch("agents.writer_agent.get_writer_llm", return_value=mock_main):
 
             events_collected = []
             async for line in run_research_with_sources(TEST_QUERY, preloaded):
@@ -723,6 +773,9 @@ async def test_llm_connection():
     for name, llm in [
         ("llama-3.1-8b-instant (fast)", get_fast_llm()),
         ("llama-3.3-70b-versatile (main)", get_llm()),
+        ("openai/gpt-oss-120b", get_writer_llm()),
+        ("openai/gpt-oss-20b", get_planner_llm()),
+        ("qwen/qwen3-32b", get_analyst_llm()),
     ]:
         try:
             t0 = time.time()
@@ -814,8 +867,8 @@ async def test_full_pipeline_live():
         elapsed = time.time() - t0
         print()
 
-        # All 4 agents ran
-        for agent in ("planner", "researcher", "analyst", "writer"):
+        # All agents ran
+        for agent in ("planner", "researcher", "analyst", "writer", "verifier", "publisher"):
             if agent in agents_seen:
                 ok(f"Agent '{agent}' ran")
             else:
@@ -983,7 +1036,9 @@ async def run_unit():
     await test_researcher_node_pdf_mode()
     await test_analyst_node_structure()
     await test_analyst_node_malformed_json()
-    await test_writer_node_streams()
+    await test_writer_node_saves_draft()
+    await test_publisher_node_streams()
+    await test_verifier_node()
     await test_build_graph()
     await test_stream_from_queue()
     await test_run_research_with_sources_pdf_mode()

@@ -1,6 +1,6 @@
 import json
 from langchain_core.messages import HumanMessage
-from agents.helper import get_fast_llm, emit
+from agents.helper import get_planner_llm, emit
 from agents.helper import ResearchState
 
 # ── Node 1: Planner ───────────────────────────────────────────
@@ -14,7 +14,7 @@ async def planner_node(state: ResearchState) -> ResearchState:
         "content": f"Analyzing research request: '{state['query']}'..."
     })
 
-    llm = get_fast_llm()
+    llm = get_planner_llm()
 
     prompt = f"""You are a research planner. Break the following question into 3-5 specific sub-questions to research.
 Respond ONLY with a valid JSON array of strings. No explanation, no markdown, no extra text.

@@ -1,4 +1,4 @@
-from agents.helper import get_fast_llm, emit, extract_json
+from agents.helper import get_analyst_llm, emit, extract_json
 from agents.helper import ResearchState
 from langchain_core.messages import HumanMessage
 
@@ -14,7 +14,7 @@ async def analyst_node(state: ResearchState) -> ResearchState:
         "content": "Evaluating source credibility and detecting contradictions..."
     })
 
-    llm = get_fast_llm()
+    llm = get_analyst_llm()
 
     sources_text = "\n\n".join([
         f"[{i}] {s['title']}\nURL: {s['url']}\n{s['content'][:500]}"
@@ -47,9 +47,7 @@ Return ONLY the JSON object. No markdown, no explanation."""
             "overall_confidence": 0,
             "follow_up_queries": []
         }
-    
-    print("DEBUG: Analyst analysis:", analysis)  # Debug log
-    
+        
     if analysis.get("overall_confidence", 1.0) < 0.6:
         new_queries = analysis.get("follow_up_queries", [])
         await emit(queue, {
@@ -71,7 +69,7 @@ Return ONLY the JSON object. No markdown, no explanation."""
                        f"contradiction(s) across sources."
         })
 
-    confidence_pct = int(analysis.get("overall_confidence", 0.7) * 100)
+    confidence_pct = int(analysis.get("overall_confidence", 0.6) * 100)
     await emit(queue, {
         "type": "thinking",
         "agent": "analyst",
@@ -88,7 +86,7 @@ Return ONLY the JSON object. No markdown, no explanation."""
                 "title": s["title"],
                 "url": s["url"],
                 "snippet": s["content"][:250],
-                "credibility_score": analysis.get("overall_confidence", 0.7)
+                "credibility_score": analysis.get("overall_confidence", 0.6)
             })
 
     await emit(queue, {
