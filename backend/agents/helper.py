@@ -12,8 +12,11 @@ load_dotenv()
 
 # ── LLM Setup ────────────────────────────────────────────────
 # Groq free tier models:
-#   llama-3.3-70b-versatile  → best quality for final report
-#   llama-3.1-8b-instant     → fastest, great for structured JSON tasks
+#   llama-3.3-70b-versatile
+#   llama-3.1-8b-instant   
+#   qwen/qwen3-32b
+#   openai/gpt-oss-20b
+#   openai/gpt-oss-120b
 
 def get_llm(temperature: float = 0.3, model: str | None = None):
     return ChatGroq(
@@ -27,12 +30,25 @@ def get_fast_llm():
     """Cheaper/faster model for structured JSON extraction tasks."""
     return get_llm(temperature=0.1, model="llama-3.1-8b-instant")
 
+def get_planner_llm():
+    return get_llm(temperature=0.1, model="openai/gpt-oss-20b")
+
+def get_analyst_llm():
+    return get_llm(temperature=0.1, model="qwen/qwen3-32b")
+
+def get_verifier_llm():
+    return get_llm(temperature=0.1, model="openai/gpt-oss-120b")
+
+def get_writer_llm():
+    return get_llm(temperature=0.3, model="openai/gpt-oss-120b")
+
 # ── Agent State ───────────────────────────────────────────────
 
 class ResearchState(TypedDict):
     query: str
     sub_questions: list[str]
     raw_sources: list[dict]
+    pdf_sources: list[dict]
     analysis: dict
     final_report: str
     citations: list[dict]

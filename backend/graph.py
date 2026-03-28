@@ -1,7 +1,7 @@
 """
 graph.py — LangGraph Research Workflow
 =======================================
-Stack: Groq (Llama 3.3 70B) + Tavily Search
+Stack: Groq (GPT-OSS-20B/120B, Qwen3-32B) + Tavily Search
 Pipeline: Planner → Researcher → Analyst → Writer
 
 Each node emits SSE events into an asyncio.Queue.
@@ -18,15 +18,23 @@ from agents.planner_agent import planner_node
 from agents.researcher_agent import researcher_node
 from agents.analyst_agent import analyst_node
 from agents.writer_agent import writer_node
+from agents.verifier_agent import verifier_node
+from agents.publisher_node import publisher_node
 
 def should_continue(state: ResearchState):
     analysis = state.get("analysis", {})
     loop_step = state.get("loop_step", 0)
     
-    if analysis.get("overall_confidence", 1.0) < 0.6 and loop_step < 2:
+    if analysis.get("overall_confidence", 1.0) < 0.6 and loop_step < 3:
         return "researcher"
     return "writer"
 
+def should_finish_or_revise(state: ResearchState):
+    verification = state.get("analysis", {}).get("verification", {})
+    
+    if verification.get("score", 1.0) < 0.8 and state.get("loop_step", 0) < 3:
+        return "writer" 
+    return "publisher"
 
 # ── Build Graph ───────────────────────────────────────────────
 
@@ -37,10 +45,13 @@ def build_graph():
     graph.add_node("researcher", researcher_node)
     graph.add_node("analyst",    analyst_node)
     graph.add_node("writer",     writer_node)
+    graph.add_node("verifier",   verifier_node)
+    graph.add_node("publisher",  publisher_node)
 
     graph.set_entry_point("planner")
     graph.add_edge("planner",    "researcher")
     graph.add_edge("researcher", "analyst")
+    
     graph.add_conditional_edges(
         "analyst",
         should_continue,
@@ -49,8 +60,20 @@ def build_graph():
             "writer": "writer"
         }
     )
-    graph.add_edge("writer",     END)
-
+    
+    graph.add_edge("writer", "verifier")
+    
+    graph.add_conditional_edges(
+        "verifier",
+        should_finish_or_revise,
+        {
+            "writer": "writer",
+            "publisher": "publisher"          
+        }
+    )
+    
+    graph.add_edge("publisher", END)
+    
     return graph.compile()
 
 
@@ -118,7 +141,8 @@ async def run_research_with_sources(
             await research_graph.ainvoke({
                 "query":         query,
                 "sub_questions": [],
-                "raw_sources":   preloaded_sources,  # non-empty → researcher skips web search
+                "raw_sources":   [],  
+                "pdf_sources":   preloaded_sources, # non-empty → researcher skips web search
                 "analysis":      {},
                 "final_report":  "",
                 "citations":     [],

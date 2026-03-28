@@ -30,11 +30,11 @@ async def researcher_node(state: ResearchState) -> ResearchState:
     queue = state["event_queue"]
     
     # ── PDF mode: sources already preloaded, skip web search ──
-    if state.get("raw_sources"):
+    if state.get("pdf_sources"):
         await emit(queue, {
             "type":    "thinking",
             "agent":   "researcher",
-            "content": f"Using {len(state['raw_sources'])} pre-loaded PDF "
+            "content": f"Using {len(state['pdf_sources'])} pre-loaded PDF "
                        f"chunk(s). Skipping web search."
         })
         return state
