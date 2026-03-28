@@ -19,7 +19,7 @@
  *     → child components re-render reactively
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { ReasoningLog } from "@/components/ReasoningLog";
 import { ArtifactPanel } from "@/components/ArtifactPanel";
@@ -217,9 +217,28 @@ function QueryInput({ onSubmit, isStreaming }: QueryInputProps) {
 
 function ReportPanel({ messages }: { messages: Message[] }) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const viewport = scrollRef.current?.querySelector(
+      "[data-radix-scroll-area-viewport]",
+    );
+    if (viewport) {
+      // Kiểm tra nếu người dùng đang ở sát dưới cùng (trong khoảng 150px)
+      const isAtBottom =
+        viewport.scrollHeight - viewport.scrollTop <=
+        viewport.clientHeight + 150;
+
+      if (isAtBottom) {
+        viewport.scrollTo({
+          top: viewport.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+    }
+  }, [messages]);
 
   return (
-    <ScrollArea className="flex-1 px-4 py-4">
+    <ScrollArea className="h-full px-4 py-4">
       {messages.length === 0 ? (
         // Landing state
         <div className="flex flex-col items-center justify-center h-64 gap-3 text-center">
@@ -444,10 +463,7 @@ export function ChatPanel() {
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       {/* ── Left panel: Reasoning Log (30%) ─────────────────── */}
-      <div
-        className="w-[30%] min-w-[300px] max-w-[400px] flex flex-col
-                  bg-white border-r border-slate-200 overflow-x-hidden"
-      >
+      <div className="w-[30%] min-w-0 max-w-[380px] flex flex-col bg-white border-r border-slate-200">
         <ReasoningLog
           thinkingSteps={thinkingSteps}
           toolCalls={toolCalls}
@@ -456,12 +472,9 @@ export function ChatPanel() {
       </div>
 
       {/* ── Center panel: Report (flex-1) ────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-[400px] bg-white">
+      <div className="flex-1 flex flex-col min-w-[400px] h-full bg-white relative">
         {/* Top bar */}
-        <div
-          className="flex items-center justify-between px-4 py-3
-                        border-b border-slate-200 bg-white"
-        >
+        <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white z-10">
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-slate-700">
               Research Report
@@ -476,17 +489,18 @@ export function ChatPanel() {
         </div>
 
         {/* Messages */}
-        <ReportPanel messages={messages} />
+        <div className="flex-1 min-h-0">
+          <ReportPanel messages={messages} />
+        </div>
 
         {/* Input */}
-        <QueryInput onSubmit={handleSubmit} isStreaming={isStreaming} />
+        <div className="flex-shrink-0">
+          <QueryInput onSubmit={handleSubmit} isStreaming={isStreaming} />
+        </div>
       </div>
 
       {/* ── Right panel: Artifacts (25%) ─────────────────────── */}
-      <div
-        className="w-[25%] min-w-[280px] max-w-[350px] flex flex-col
-                  bg-white border-l border-slate-200 overflow-x-hidden"
-      >
+      <div className="w-[25%] min-w-[280px] max-w-[350px] flex flex-col bg-white border-l border-slate-200 overflow-x-hidden break-words">
         <ArtifactPanel artifacts={artifacts} isStreaming={isStreaming} />
       </div>
     </div>

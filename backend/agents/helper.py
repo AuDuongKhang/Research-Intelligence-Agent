@@ -44,7 +44,7 @@ class ResearchState(TypedDict):
 async def emit(queue: asyncio.Queue, event: dict):
     """Push a single SSE event into the queue."""
     await queue.put(json.dumps(event, ensure_ascii=False))
-    await asyncio.sleep(0)
+    await asyncio.sleep(0.01)
 
 
 async def _stream_from_queue(queue: asyncio.Queue) -> AsyncGenerator[str, None]:

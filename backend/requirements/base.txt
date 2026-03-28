@@ -4,9 +4,9 @@ python-dotenv
 pydantic
 langchain
 langchain-core
-langchain-community
 langchain-tavily
 langgraph
 langchain-groq
 tavily-python
 pymupdf
+python-multipart

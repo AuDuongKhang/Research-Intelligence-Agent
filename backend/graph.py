@@ -84,7 +84,9 @@ async def run_research(query: str) -> AsyncGenerator[str, None]:
             await queue.put(None)
  
     asyncio.create_task(_run())
- 
+    
+    yield f": {' ' * 2048}\n\n"
+    
     async for event in _stream_from_queue(queue):
         yield event
  
@@ -129,5 +131,8 @@ async def run_research_with_sources(
             await queue.put(None)
  
     asyncio.create_task(_run())
+    
+    yield f": {' ' * 2048}\n\n"
+    
     async for event in _stream_from_queue(queue):
         yield event
