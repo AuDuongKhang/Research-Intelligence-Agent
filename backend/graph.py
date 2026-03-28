@@ -21,7 +21,9 @@ from agents.writer_agent import writer_node
 
 def should_continue(state: ResearchState):
     analysis = state.get("analysis", {})
-    if analysis.get("overall_confidence", 1.0) < 0.6:
+    loop_step = state.get("loop_step", 0)
+    
+    if analysis.get("overall_confidence", 1.0) < 0.6 and loop_step < 2:
         return "researcher"
     return "writer"
 

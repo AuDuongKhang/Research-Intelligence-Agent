@@ -21,12 +21,14 @@ async def analyst_node(state: ResearchState) -> ResearchState:
         for i, s in enumerate(state["raw_sources"][:8])
     ])
 
-    prompt = f"""Analyze the following sources and return a JSON object with this exact structure:
+    prompt = f"""Analyze the following sources. If information is missing or contradictory, 
+    provide 'follow_up_queries' to resolve them. Return a JSON object with this exact structure:
 {{
   "key_findings": ["finding 1", "finding 2", "finding 3"],
-  "contradictions": [],
+  "contradictions": [...],
   "credible_source_indices": [0, 1, 2],
-  "overall_confidence": 0.85
+  "overall_confidence": ...,  # 0.0 to 1.0
+  "follow_up_queries": ["New search query 1", "New search query 2"]
 }}
 
 Sources (0-indexed):
@@ -37,6 +39,27 @@ Return ONLY the JSON object. No markdown, no explanation."""
     response = await llm.ainvoke([HumanMessage(content=prompt)])
     analysis = extract_json(response.content)
 
+    if analysis is None:
+        analysis = {
+            "key_findings": ["Failed to parse analysis"],
+            "contradictions": [],
+            "credible_source_indices": [],
+            "overall_confidence": 0,
+            "follow_up_queries": []
+        }
+    
+    print("DEBUG: Analyst analysis:", analysis)  # Debug log
+    
+    if analysis.get("overall_confidence", 1.0) < 0.6:
+        new_queries = analysis.get("follow_up_queries", [])
+        await emit(queue, {
+            "type": "thinking",
+            "agent": "analyst",
+            "content": f"Low confidence detected. Triggering follow-up research for: {', '.join(new_queries)}"
+        })
+        
+        return {**state, "analysis": analysis, "sub_questions": new_queries, "loop_step": state.get("loop_step", 0) + 1}
+        
     if not analysis:
         analysis = {"overall_confidence": 0, "key_findings": ["Failed to parse analysis"]}
 

@@ -37,6 +37,7 @@ class ResearchState(TypedDict):
     final_report: str
     citations: list[dict]
     event_queue: asyncio.Queue
+    loop_step: int
 
 
 # ── Helper ────────────────────────────────────────────────────
