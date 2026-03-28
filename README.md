@@ -1,4 +1,4 @@
-# Research Intelligence Agent: Multi-Agent RAG System
+# Research Intelligence Agent
 
 **An advanced automated research platform powered by LangGraph, Groq, and Tavily.** This system implements a sophisticated Multi-Agent architecture to provide transparent, verified, and high-fidelity research reports from both web and local PDF sources.
 
