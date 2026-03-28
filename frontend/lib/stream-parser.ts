@@ -158,16 +158,17 @@ function dispatch(event: SSEEvent, callbacks: StreamCallbacks): void {
  */
 export async function streamResearch(
   query: string,
-  callbacks: StreamCallbacks,
+  callbacks: StreamCallbacks & { _fetchOverride?: Promise<Response> },
 ): Promise<void> {
   let response: Response;
 
   try {
-    response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
-    });
+    response = await (callbacks._fetchOverride ??
+      fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      }));
   } catch (err) {
     callbacks.onError?.(`Network error: ${String(err)}`);
     callbacks.onDone?.();

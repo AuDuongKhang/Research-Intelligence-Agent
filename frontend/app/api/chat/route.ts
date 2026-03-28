@@ -40,14 +40,16 @@ export async function POST(req: NextRequest) {
 
   // 2. Forward the request to FastAPI
   let backendResponse: Response;
+
   try {
     backendResponse = await fetch(`${BACKEND_URL}/api/research/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
-      // Next.js 14+ needs this to disable response caching on fetch
       cache: "no-store",
     });
+    const stream = backendResponse.body;
+    if (!stream) return new Response("No stream", { status: 500 });
   } catch (err) {
     // FastAPI is not running or unreachable
     return new Response(
