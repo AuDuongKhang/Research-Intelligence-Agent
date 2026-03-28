@@ -1,5 +1,4 @@
-import json
-from agents.helper import get_fast_llm, emit
+from agents.helper import get_fast_llm, emit, extract_json
 from agents.helper import ResearchState
 from langchain_core.messages import HumanMessage
 
@@ -36,17 +35,10 @@ Sources (0-indexed):
 Return ONLY the JSON object. No markdown, no explanation."""
 
     response = await llm.ainvoke([HumanMessage(content=prompt)])
+    analysis = extract_json(response.content)
 
-    try:
-        raw = response.content.strip().removeprefix("```json").removesuffix("```").strip()
-        analysis = json.loads(raw)
-    except (json.JSONDecodeError, ValueError):
-        analysis = {
-            "key_findings": ["Could not parse structured analysis"],
-            "contradictions": [],
-            "credible_source_indices": list(range(min(5, len(state["raw_sources"])))),
-            "overall_confidence": 0.7
-        }
+    if not analysis:
+        analysis = {"overall_confidence": 0, "key_findings": ["Failed to parse analysis"]}
 
     if analysis.get("contradictions"):
         await emit(queue, {

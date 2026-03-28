@@ -32,8 +32,8 @@ import type { ThinkingEvent, ToolCallEvent, ArtifactEvent } from "@/lib/types";
 interface Message {
   id: string;
   role: "user" | "assistant";
-  content: string;         // user: raw query | assistant: accumulated markdown
-  isStreaming?: boolean;   // true while the SSE stream is still open
+  content: string; // user: raw query | assistant: accumulated markdown
+  isStreaming?: boolean; // true while the SSE stream is still open
 }
 
 // ── Agent step indicator (shown in header while running) ──────
@@ -48,12 +48,12 @@ function AgentPipeline({ currentAgent }: { currentAgent: string | null }) {
   return (
     <div className="flex items-center gap-1.5">
       {AGENT_STEPS.map((step, idx) => {
-        const stepIdx  = AGENT_STEPS.indexOf(step);
+        const stepIdx = AGENT_STEPS.indexOf(step);
         const activeIdx = AGENT_STEPS.findIndex(
-          s => s.toLowerCase() === currentAgent.toLowerCase()
+          (s) => s.toLowerCase() === currentAgent.toLowerCase(),
         );
-        const isDone    = stepIdx < activeIdx;
-        const isActive  = step === active;
+        const isDone = stepIdx < activeIdx;
+        const isActive = step === active;
 
         return (
           <div key={step} className="flex items-center gap-1.5">
@@ -61,16 +61,20 @@ function AgentPipeline({ currentAgent }: { currentAgent: string | null }) {
               {/* Status dot */}
               <span
                 className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  isDone   ? "bg-emerald-400" :
-                  isActive ? "bg-blue-400 animate-pulse" :
-                             "bg-slate-200"
+                  isDone
+                    ? "bg-emerald-400"
+                    : isActive
+                      ? "bg-blue-400 animate-pulse"
+                      : "bg-slate-200"
                 }`}
               />
               <span
                 className={`text-xs ${
-                  isDone   ? "text-emerald-600" :
-                  isActive ? "text-blue-600 font-medium" :
-                             "text-slate-300"
+                  isDone
+                    ? "text-emerald-600"
+                    : isActive
+                      ? "text-blue-600 font-medium"
+                      : "text-slate-300"
                 }`}
               >
                 {step}
@@ -90,18 +94,21 @@ function AgentPipeline({ currentAgent }: { currentAgent: string | null }) {
 // ── Query input form ──────────────────────────────────────────
 
 interface QueryInputProps {
-  onSubmit: (query: string) => void;
+  onSubmit: (query: string, file?: File) => void;
   isStreaming: boolean;
 }
 
 function QueryInput({ onSubmit, isStreaming }: QueryInputProps) {
   const [value, setValue] = useState("");
+  const [pdfFile, setPdf] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = () => {
     const trimmed = value.trim();
     if (!trimmed || trimmed.length < 10 || isStreaming) return;
-    onSubmit(trimmed);
+    onSubmit(trimmed, pdfFile ?? undefined);
     setValue("");
+    setPdf(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -113,20 +120,66 @@ function QueryInput({ onSubmit, isStreaming }: QueryInputProps) {
 
   return (
     <div className="border-t border-slate-200 bg-white px-4 py-3">
-      <div className="flex gap-3 items-end">
+      {/* PDF badge — shown when a file is selected */}
+      {pdfFile && (
+        <div className="flex items-center gap-2 mb-2">
+          <span
+            className="text-xs bg-orange-50 text-orange-600 border border-orange-200
+                           rounded px-2 py-0.5 flex items-center gap-1"
+          >
+            📄 {pdfFile.name}
+            <button
+              onClick={() => setPdf(null)}
+              className="ml-1 hover:text-orange-800 font-bold"
+            >
+              ×
+            </button>
+          </span>
+        </div>
+      )}
+
+      <div className="flex gap-2 items-end">
+        {/* Hidden file input */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".pdf"
+          className="hidden"
+          onChange={(e) => setPdf(e.target.files?.[0] ?? null)}
+        />
+
+        {/* PDF upload button */}
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={isStreaming}
+          title="Upload PDF"
+          className="flex-shrink-0 h-10 w-10 rounded-lg border border-slate-200
+                     text-slate-400 hover:text-orange-500 hover:border-orange-300
+                     disabled:opacity-40 disabled:cursor-not-allowed
+                     transition-colors flex items-center justify-center text-base"
+        >
+          📄
+        </button>
+
+        {/* Text input */}
         <textarea
           value={value}
-          onChange={e => setValue(e.target.value)}
+          onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask a research question... (e.g. What are the latest breakthroughs in quantum computing?)"
+          placeholder={
+            pdfFile
+              ? "Ask a question about the uploaded PDF..."
+              : "Ask a research question... (e.g. What are the latest breakthroughs in quantum computing?)"
+          }
           disabled={isStreaming}
           rows={2}
-          className="flex-1 resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2
-                     text-sm text-slate-800 placeholder:text-slate-400
+          className="flex-1 resize-none rounded-lg border border-slate-200 bg-slate-50
+                     px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400
                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                     disabled:opacity-50 disabled:cursor-not-allowed
-                     transition-colors"
+                     disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         />
+
+        {/* Submit button */}
         <button
           onClick={handleSubmit}
           disabled={isStreaming || value.trim().length < 10}
@@ -137,7 +190,10 @@ function QueryInput({ onSubmit, isStreaming }: QueryInputProps) {
         >
           {isStreaming ? (
             <>
-              <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span
+                className="w-3 h-3 border-2 border-white border-t-transparent
+                               rounded-full animate-spin"
+              />
               Running
             </>
           ) : (
@@ -148,8 +204,10 @@ function QueryInput({ onSubmit, isStreaming }: QueryInputProps) {
           )}
         </button>
       </div>
-      <p className="text-xs text-slate-400 mt-1.5 pl-0.5">
-        Press Enter to submit · Shift+Enter for new line · Min 10 characters
+
+      <p className="text-xs text-slate-400 mt-1.5">
+        Press Enter to submit · Shift+Enter for new line
+        {pdfFile ? " · PDF mode active" : " · or upload a PDF 📄"}
       </p>
     </div>
   );
@@ -169,10 +227,12 @@ function ReportPanel({ messages }: { messages: Message[] }) {
             🔬
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-700">Research Intelligence</p>
+            <p className="text-sm font-medium text-slate-700">
+              Research Intelligence
+            </p>
             <p className="text-xs text-slate-400 mt-1 max-w-xs">
-              Ask a question and watch the agents search, analyze, and synthesize
-              a cited report in real-time.
+              Ask a question and watch the agents search, analyze, and
+              synthesize a cited report in real-time.
             </p>
           </div>
           {/* Example queries */}
@@ -181,17 +241,20 @@ function ReportPanel({ messages }: { messages: Message[] }) {
               "Latest breakthroughs in quantum computing 2025",
               "How does CRISPR gene editing work and its current applications",
               "Impact of large language models on software development",
-            ].map(q => (
+            ].map((q) => (
               <button
                 key={q}
                 onClick={() => {
                   const textarea = document.querySelector("textarea");
                   if (textarea) {
                     const setter = Object.getOwnPropertyDescriptor(
-                      window.HTMLTextAreaElement.prototype, "value"
+                      window.HTMLTextAreaElement.prototype,
+                      "value",
                     )?.set;
                     setter?.call(textarea, q);
-                    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+                    textarea.dispatchEvent(
+                      new Event("input", { bubbles: true }),
+                    );
                   }
                 }}
                 className="text-left text-xs text-blue-600 hover:text-blue-700 bg-blue-50
@@ -205,13 +268,15 @@ function ReportPanel({ messages }: { messages: Message[] }) {
         </div>
       ) : (
         <div className="space-y-4">
-          {messages.map(msg => (
+          {messages.map((msg) => (
             <div key={msg.id}>
               {msg.role === "user" ? (
                 // User message bubble
                 <div className="flex justify-end">
-                  <div className="max-w-[80%] bg-blue-600 text-white rounded-2xl
-                                  rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed">
+                  <div
+                    className="max-w-[80%] bg-blue-600 text-white rounded-2xl
+                                  rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed"
+                  >
                     {msg.content}
                   </div>
                 </div>
@@ -235,20 +300,24 @@ function ReportPanel({ messages }: { messages: Message[] }) {
                     </div>
 
                     {/* Markdown report */}
-                    <div className="prose prose-sm prose-slate max-w-none
+                    <div
+                      className="prose prose-sm prose-slate max-w-none
                                     prose-headings:font-semibold prose-headings:text-slate-800
                                     prose-p:text-slate-600 prose-p:leading-relaxed
                                     prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
                                     prose-code:bg-slate-100 prose-code:px-1 prose-code:rounded
                                     prose-blockquote:border-l-blue-300 prose-blockquote:text-slate-500
-                                    prose-strong:text-slate-700">
+                                    prose-strong:text-slate-700"
+                    >
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
 
                     {/* Streaming cursor */}
                     {msg.isStreaming && (
-                      <span className="inline-block w-2 h-4 bg-blue-400 rounded-sm
-                                       animate-pulse ml-0.5 align-middle" />
+                      <span
+                        className="inline-block w-2 h-4 bg-blue-400 rounded-sm
+                                       animate-pulse ml-0.5 align-middle"
+                      />
                     )}
                   </div>
                 </div>
@@ -266,16 +335,16 @@ function ReportPanel({ messages }: { messages: Message[] }) {
 
 export function ChatPanel() {
   // ── State ──────────────────────────────────────────────────
-  const [messages, setMessages]           = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingEvent[]>([]);
-  const [toolCalls, setToolCalls]         = useState<ToolCallEvent[]>([]);
-  const [artifacts, setArtifacts]         = useState<ArtifactEvent[]>([]);
-  const [isStreaming, setIsStreaming]      = useState(false);
-  const [currentAgent, setCurrentAgent]   = useState<string | null>(null);
-  const [error, setError]                 = useState<string | null>(null);
+  const [toolCalls, setToolCalls] = useState<ToolCallEvent[]>([]);
+  const [artifacts, setArtifacts] = useState<ArtifactEvent[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [currentAgent, setCurrentAgent] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // ── Submit handler ─────────────────────────────────────────
-  const handleSubmit = useCallback(async (query: string) => {
+  const handleSubmit = useCallback(async (query: string, file?: File) => {
     // Reset state from previous run
     setThinkingSteps([]);
     setToolCalls([]);
@@ -284,32 +353,46 @@ export function ChatPanel() {
     setCurrentAgent("planner");
     setIsStreaming(true);
 
-    // Add user message
     const userMsgId = crypto.randomUUID();
     const assistantMsgId = crypto.randomUUID();
 
-    setMessages(prev => [
+    setMessages((prev) => [
       ...prev,
       { id: userMsgId, role: "user", content: query },
       { id: assistantMsgId, role: "assistant", content: "", isStreaming: true },
     ]);
 
-    // ── Stream callbacks ──────────────────────────────────────
+    // Build fetch request — multipart if PDF attached, JSON otherwise
+    let fetchPromise: Promise<Response>;
+    if (file) {
+      const form = new FormData();
+      form.append("query", query);
+      form.append("file", file);
+      fetchPromise = fetch("/api/chat/pdf", { method: "POST", body: form });
+    } else {
+      fetchPromise = fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
+    }
+
     await streamResearch(query, {
+      // Override fetch by passing response directly to parseResearchStream
+      _fetchOverride: fetchPromise,
 
       onThinking: (event) => {
         setCurrentAgent(event.agent);
-        setThinkingSteps(prev => [...prev, event]);
+        setThinkingSteps((prev) => [...prev, event]);
       },
 
       onToolCall: (event) => {
-        setToolCalls(prev => {
-          // Update existing running entry → done/error transition
+        setToolCalls((prev) => {
           const idx = prev.findIndex(
-            t =>
-              t.tool   === event.tool &&
-              t.status === "running"  &&
-              JSON.stringify(t.params) === JSON.stringify(event.params)
+            (t) =>
+              t.tool === event.tool &&
+              t.status === "running" &&
+              JSON.stringify(t.params) === JSON.stringify(event.params),
           );
           if (idx !== -1) {
             const updated = [...prev];
@@ -322,40 +405,36 @@ export function ChatPanel() {
 
       onResultChunk: (text, isFinal) => {
         if (!isFinal && text) {
-          setMessages(prev =>
-            prev.map(m =>
-              m.id === assistantMsgId
-                ? { ...m, content: m.content + text }
-                : m
-            )
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMsgId ? { ...m, content: m.content + text } : m,
+            ),
           );
         }
       },
 
       onArtifact: (event) => {
-        setArtifacts(prev => [...prev, event]);
+        setArtifacts((prev) => [...prev, event]);
       },
 
       onError: (message) => {
         setError(message);
         setIsStreaming(false);
         setCurrentAgent(null);
-        // Mark assistant message as no longer streaming
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === assistantMsgId ? { ...m, isStreaming: false } : m
-          )
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMsgId ? { ...m, isStreaming: false } : m,
+          ),
         );
       },
 
       onDone: () => {
         setIsStreaming(false);
         setCurrentAgent(null);
-        // Mark assistant message as complete
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === assistantMsgId ? { ...m, isStreaming: false } : m
-          )
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMsgId ? { ...m, isStreaming: false } : m,
+          ),
         );
       },
     });
@@ -364,10 +443,11 @@ export function ChatPanel() {
   // ── Layout ─────────────────────────────────────────────────
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-
       {/* ── Left panel: Reasoning Log (30%) ─────────────────── */}
-      <div className="w-[30%] min-w-[260px] max-w-[380px] flex flex-col
-                      bg-white border-r border-slate-200">
+      <div
+        className="w-[30%] min-w-[300px] max-w-[400px] flex flex-col
+                  bg-white border-r border-slate-200 overflow-x-hidden"
+      >
         <ReasoningLog
           thinkingSteps={thinkingSteps}
           toolCalls={toolCalls}
@@ -376,10 +456,12 @@ export function ChatPanel() {
       </div>
 
       {/* ── Center panel: Report (flex-1) ────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-[400px] bg-white">
         {/* Top bar */}
-        <div className="flex items-center justify-between px-4 py-3
-                        border-b border-slate-200 bg-white">
+        <div
+          className="flex items-center justify-between px-4 py-3
+                        border-b border-slate-200 bg-white"
+        >
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-slate-700">
               Research Report
@@ -401,12 +483,11 @@ export function ChatPanel() {
       </div>
 
       {/* ── Right panel: Artifacts (25%) ─────────────────────── */}
-      <div className="w-[25%] min-w-[220px] max-w-[320px] flex flex-col
-                      bg-white border-l border-slate-200">
-        <ArtifactPanel
-          artifacts={artifacts}
-          isStreaming={isStreaming}
-        />
+      <div
+        className="w-[25%] min-w-[280px] max-w-[350px] flex flex-col
+                  bg-white border-l border-slate-200 overflow-x-hidden"
+      >
+        <ArtifactPanel artifacts={artifacts} isStreaming={isStreaming} />
       </div>
     </div>
   );

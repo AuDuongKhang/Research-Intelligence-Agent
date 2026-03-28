@@ -1,11 +1,11 @@
 import asyncio
 import json
 import os
-from typing import TypedDict
+import re
+from typing import TypedDict, AsyncGenerator
 from dotenv import load_dotenv
 
 from langchain_groq import ChatGroq
-from langchain_tavily import TavilySearch 
 
 
 load_dotenv()
@@ -44,3 +44,22 @@ class ResearchState(TypedDict):
 async def emit(queue: asyncio.Queue, event: dict):
     """Push a single SSE event into the queue."""
     await queue.put(json.dumps(event, ensure_ascii=False))
+    await asyncio.sleep(0)
+
+
+async def _stream_from_queue(queue: asyncio.Queue) -> AsyncGenerator[str, None]:
+    while True:
+        event = await queue.get()
+        if event is None:
+            break
+        yield f"data: {event}\n\n"
+
+def extract_json(text: str):
+    """Extracting JSON from a text string may contain markdown"""
+    try:
+        match = re.search(r"(\{.*\})", text, re.DOTALL)
+        if match:
+            return json.loads(match.group(1))
+        return json.loads(text)
+    except:
+        return None

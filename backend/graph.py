@@ -13,11 +13,17 @@ import json
 
 from typing import AsyncGenerator
 from langgraph.graph import StateGraph, END
-from agents.helper import ResearchState
+from agents.helper import ResearchState, _stream_from_queue
 from agents.planner_agent import planner_node
 from agents.researcher_agent import researcher_node
 from agents.analyst_agent import analyst_node
 from agents.writer_agent import writer_node
+
+def should_continue(state: ResearchState):
+    analysis = state.get("analysis", {})
+    if analysis.get("overall_confidence", 1.0) < 0.6:
+        return "researcher"
+    return "writer"
 
 
 # ── Build Graph ───────────────────────────────────────────────
@@ -33,7 +39,14 @@ def build_graph():
     graph.set_entry_point("planner")
     graph.add_edge("planner",    "researcher")
     graph.add_edge("researcher", "analyst")
-    graph.add_edge("analyst",    "writer")
+    graph.add_conditional_edges(
+        "analyst",
+        should_continue,
+        {
+            "researcher": "researcher",
+            "writer": "writer"
+        }
+    )
     graph.add_edge("writer",     END)
 
     return graph.compile()
@@ -50,7 +63,7 @@ async def run_research(query: str) -> AsyncGenerator[str, None]:
     Called by main.py's StreamingResponse.
     """
     queue: asyncio.Queue = asyncio.Queue()
-
+ 
     async def _run():
         try:
             await research_graph.ainvoke({
@@ -69,11 +82,52 @@ async def run_research(query: str) -> AsyncGenerator[str, None]:
             }))
         finally:
             await queue.put(None)
-
+ 
     asyncio.create_task(_run())
-
-    while True:
-        event = await queue.get()
-        if event is None:
-            break
-        yield f"data: {event}\n\n"
+ 
+    async for event in _stream_from_queue(queue):
+        yield event
+ 
+ 
+async def run_research_with_sources(
+    query: str,
+    preloaded_sources: list[dict],
+) -> AsyncGenerator[str, None]:
+    """
+    PDF mode — pre-extracted PDF chunks are injected as raw_sources.
+    researcher_node detects non-empty raw_sources and skips web search.
+    Pipeline still runs full Planner → Researcher → Analyst → Writer.
+    """
+    queue: asyncio.Queue = asyncio.Queue()
+ 
+    async def _run():
+        try:
+            # Emit a tool_call event so the UI shows the PDF was loaded
+            await queue.put(json.dumps({
+                "type":           "tool_call",
+                "tool":           "pdf_reader",
+                "params":         {"filename": preloaded_sources[0].get("title", "upload.pdf")},
+                "status":         "done",
+                "result_preview": f"Extracted {len(preloaded_sources)} chunk(s) from PDF"
+            }))
+ 
+            await research_graph.ainvoke({
+                "query":         query,
+                "sub_questions": [],
+                "raw_sources":   preloaded_sources,  # non-empty → researcher skips web search
+                "analysis":      {},
+                "final_report":  "",
+                "citations":     [],
+                "event_queue":   queue,
+            })
+        except Exception as e:
+            await queue.put(json.dumps({
+                "type":    "error",
+                "message": f"Pipeline error: {str(e)}"
+            }))
+        finally:
+            await queue.put(None)
+ 
+    asyncio.create_task(_run())
+    async for event in _stream_from_queue(queue):
+        yield event
