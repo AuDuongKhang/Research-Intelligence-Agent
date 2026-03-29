@@ -1,6 +1,6 @@
 # Research Intelligence Agent
 
-**An advanced automated research platform engineered with LangGraph, [Groq](https://groq.com/), and [Tavily](https://www.tavily.com/)**. In an era where LLMs often struggle with hallucinations and "black-box" reasoning, this system offers a robust solution by implementing a sophisticated Multi-Agent architecture. It doesn't just "search and summarize"; it orchestrates a team of specialized AI agents to deliver transparent, cross-verified, and high-fidelity research reports. By fusing real-time web intelligence with deep-indexing of local PDF sources, the agent ensures every claim is grounded in verifiable evidence.
+**An advanced automated research platform engineered with [LangGraph](https://www.langchain.com/langgraph), [Groq](https://groq.com/), and [Tavily](https://www.tavily.com/)**. In an era where LLMs often struggle with hallucinations and "black-box" reasoning, this system offers a robust solution by implementing a sophisticated Multi-Agent architecture. It doesn't just "search and summarize"; it orchestrates a team of specialized AI agents to deliver transparent, cross-verified, and high-fidelity research reports. By fusing real-time web intelligence with deep-indexing of local PDF sources, the agent ensures every claim is grounded in verifiable evidence.
 
 
 ## System Overview
