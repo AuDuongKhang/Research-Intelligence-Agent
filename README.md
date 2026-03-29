@@ -1,6 +1,6 @@
 # Research Intelligence Agent
 
-**An advanced automated research platform engineered with LangGraph, Groq, and Tavily**. In an era where LLMs often struggle with hallucinations and "black-box" reasoning, this system offers a robust solution by implementing a sophisticated Multi-Agent architecture. It doesn't just "search and summarize"; it orchestrates a team of specialized AI agents to deliver transparent, cross-verified, and high-fidelity research reports. By fusing real-time web intelligence with deep-indexing of local PDF sources, the agent ensures every claim is grounded in verifiable evidence.
+**An advanced automated research platform engineered with LangGraph, [Groq](https://groq.com/), and [Tavily](https://www.tavily.com/)**. In an era where LLMs often struggle with hallucinations and "black-box" reasoning, this system offers a robust solution by implementing a sophisticated Multi-Agent architecture. It doesn't just "search and summarize"; it orchestrates a team of specialized AI agents to deliver transparent, cross-verified, and high-fidelity research reports. By fusing real-time web intelligence with deep-indexing of local PDF sources, the agent ensures every claim is grounded in verifiable evidence.
 
 
 ## System Overview
@@ -17,8 +17,8 @@ To solve the "AI trust problem," the system features a real-time **Reasoning Log
 
 ### Prerequisites
 * **Python 3.11+**
-* **Conda** (recommended)
-* **Docker & Docker Compose**
+* **[Conda](https://anaconda.org/)** (recommended)
+* **[Docker & Docker Compose](https://www.docker.com/)**
 * **API Keys:** Groq, Tavily.
 
 ### Local Setup (Conda)
@@ -50,7 +50,7 @@ BACKEND_URL=http://localhost:8000
 ```
 
 ### DVC Setup
-I use **DVC (Data Version Control)** to manage our prompt templates and model parameters (`params.yaml`), ensuring experiments are reproducible.
+I use **[DVC (Data Version Control)](https://dvc.org/)** to manage our prompt templates and model parameters (`params.yaml`), ensuring experiments are reproducible.
 
 ```bash
 # Initialize DVC
@@ -99,7 +99,7 @@ npm install
 npm run dev
 ```
 
-### 2. Docker Setup (Production Mode)
+### 2. Docker Setup
 ```bash
 docker-compose up --build
 ```
@@ -116,7 +116,7 @@ python -m tests.test_streaming_latency
 
 ## Deployment
 
-The system is containerized using **Multi-stage Docker builds** for the Frontend to minimize image size and **Uvicorn** for high-performance Backend serving.
+The system is containerized using **Multi-stage Docker builds** for the Frontend to minimize image size and **[Uvicorn](https://uvicorn.dev/)** for high-performance Backend serving.
 
 * **Scaling:** Stateless FastAPI design allows for horizontal scaling behind a Load Balancer.
 * **Streaming:** Uses **Server-Sent Events (SSE)** with `X-Accel-Buffering: no` to bypass Nginx buffering for real-time UI updates.
