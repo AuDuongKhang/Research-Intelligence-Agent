@@ -7,7 +7,7 @@ async def verifier_node(state: ResearchState) -> ResearchState:
 
     await emit(queue, {
         "type": "thinking",
-        "agent": "writer", 
+        "agent": "verifier", 
         "content": "Verifying report accuracy and citations..."
     })
 
@@ -39,10 +39,10 @@ async def verifier_node(state: ResearchState) -> ResearchState:
     if not verification:
         verification = {"is_accurate": True, "score": 1.0} # Fallback
 
-    if verification.get("score", 1.0) < 0.8:
+    if verification.get("score", 1.0) < 0.6:
         error_msg = f"Factual inconsistencies detected (Score: {int(verification['score']*100)}%). Sending back for revision."
-        await emit(queue, {"type": "thinking", "agent": "writer", "content": error_msg})
+        await emit(queue, {"type": "thinking", "agent": "verifier", "content": error_msg})
     else:
-        await emit(queue, {"type": "thinking", "agent": "writer", "content": "Verification passed. Report is factually grounded."})
+        await emit(queue, {"type": "thinking", "agent": "verifier", "content": "Verification passed. Report is factually grounded."})
 
     return {**state, "analysis": {**state["analysis"], "verification": verification}}

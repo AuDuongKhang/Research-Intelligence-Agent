@@ -56,6 +56,11 @@ const AGENT_STYLES: Record<
     dot: "bg-emerald-400",
     label: "Writer",
   },
+  verifier: {
+    badge: "bg-cyan-100 text-cyan-700 border-cyan-200",
+    dot: "bg-cyan-400",
+    label: "Verifier",
+  },
 };
 
 function ThinkingStep({ event }: { event: ThinkingEvent }) {

@@ -38,7 +38,13 @@ interface Message {
 
 // ── Agent step indicator (shown in header while running) ──────
 
-const AGENT_STEPS = ["Planner", "Researcher", "Analyst", "Writer"] as const;
+const AGENT_STEPS = [
+  "Planner",
+  "Researcher",
+  "Analyst",
+  "Writer",
+  "Verifier",
+] as const;
 
 function AgentPipeline({ currentAgent }: { currentAgent: string | null }) {
   if (!currentAgent) return null;

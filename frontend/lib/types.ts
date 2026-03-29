@@ -1,13 +1,12 @@
 // ============================================================
-// SSE Event Contract — shared types giữa Frontend & Backend
-// Backend emit JSON theo format này, Frontend parse và route
-// đúng component tương ứng.
+// SSE Event Contract — shared types between Frontend & Backend
+// Backend emit JSON like this format, Frontend parse and route
 // ============================================================
 
 export type ThinkingEvent = {
   type: "thinking";
-  content: string; // "Tôi đang phân tích yêu cầu..."
-  agent: AgentName; // Node nào đang chạy
+  content: string;
+  agent: AgentName;
 };
 
 export type ToolCallEvent = {
@@ -15,20 +14,20 @@ export type ToolCallEvent = {
   tool: ToolName; // "tavily_search" | "pdf_reader"
   params: Record<string, unknown>; // { query: "AI trends 2025" }
   status: "running" | "done" | "error";
-  result_preview?: string; // snippet kết quả (optional, chỉ khi done)
+  result_preview?: string;
 };
 
 export type ResultEvent = {
   type: "result";
-  content: string; // Markdown final report, stream từng chunk
-  is_final: boolean; // true = chunk cuối cùng
+  content: string; // Markdown final report
+  is_final: boolean; // true = final chunk
 };
 
 export type ArtifactEvent = {
   type: "artifact";
   kind: "summary" | "chart" | "citation_list" | "source_card";
   title: string;
-  data: unknown; // tuỳ kind: string | ChartData | Citation[]
+  data: unknown; // string | ChartData | Citation[]
 };
 
 export type ErrorEvent = {
@@ -37,7 +36,7 @@ export type ErrorEvent = {
   agent?: AgentName;
 };
 
-// Union type — stream-parser.ts sẽ switch trên field "type"
+// Union type — stream-parser.ts will switch on field "type"
 export type SSEEvent =
   | ThinkingEvent
   | ToolCallEvent
@@ -47,11 +46,16 @@ export type SSEEvent =
 
 // ── Enums ────────────────────────────────────────────────────
 
-export type AgentName = "planner" | "researcher" | "analyst" | "writer";
+export type AgentName =
+  | "planner"
+  | "researcher"
+  | "analyst"
+  | "writer"
+  | "verifier";
 
 export type ToolName = "tavily_search" | "pdf_reader" | "exa_search";
 
-// ── Citation (dùng trong ArtifactEvent khi kind = "citation_list") ──
+// ── Citation ──
 
 export type Citation = {
   id: number;
@@ -62,7 +66,7 @@ export type Citation = {
   credibility_score?: number; // 0–1, do analyst_agent tính
 };
 
-// ── Chart data (dùng trong ArtifactEvent khi kind = "chart") ──
+// ── Chart data ──
 
 export type ChartData = {
   chart_type: "bar" | "line" | "pie";
