@@ -32,7 +32,7 @@ def should_continue(state: ResearchState):
 def should_finish_or_revise(state: ResearchState):
     verification = state.get("analysis", {}).get("verification", {})
     
-    if verification.get("score", 1.0) < 0.8 and state.get("loop_step", 0) < 3:
+    if verification.get("score", 1.0) < 0.6 and state.get("loop_step", 0) < 3:
         return "writer" 
     return "publisher"
 

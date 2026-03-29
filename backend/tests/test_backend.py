@@ -557,8 +557,8 @@ async def test_writer_node_saves_draft():
         "citations": [{"id": 1, "title": "Source 1", "url": "https://x.com", "snippet": "snippet"}]
     })
 
-    #with patch("agents.writer_agent.get_writer_llm") as mock_factory:
-    with patch("agents.writer_agent.get_llm") as mock_factory:
+    with patch("agents.writer_agent.get_writer_llm") as mock_factory:
+    #with patch("agents.writer_agent.get_llm") as mock_factory:
         mock_llm = create_autospec(ChatGroq, instance=True)
         mock_llm.astream.side_effect = fake_astream
         mock_factory.return_value = mock_llm
