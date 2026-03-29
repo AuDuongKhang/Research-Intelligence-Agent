@@ -1,106 +1,17 @@
 # Research Intelligence Agent
 
-**An advanced automated research platform powered by LangGraph, Groq, and Tavily.** This system implements a sophisticated Multi-Agent architecture to provide transparent, verified, and high-fidelity research reports from both web and local PDF sources.
+**An advanced automated research platform engineered with LangGraph, Groq, and Tavily**. In an era where LLMs often struggle with hallucinations and "black-box" reasoning, this system offers a robust solution by implementing a sophisticated Multi-Agent architecture. It doesn't just "search and summarize"; it orchestrates a team of specialized AI agents to deliver transparent, cross-verified, and high-fidelity research reports. By fusing real-time web intelligence with deep-indexing of local PDF sources, the agent ensures every claim is grounded in verifiable evidence.
 
----
 
 ## System Overview
 
-The system transitions from a simple linear pipeline to an **Intelligent Feedback Loop** architecture, ensuring "Full Transparency" through a real-time Reasoning Log.
+This project represents a dynamic Agentic RAG framework, ensures "Full Transparency" through a real-time Reasoning Log, which has been built from an **Intelligent Feedback Loop** architecture:
 
-## 📂 Project Structure
-
-```text
-research-intelligence-agent/
-├── backend/                    
-│   ├── agents/                 <-- Multi-agent logic
-│   │   ├── planner_agent.py    <-- Query decomposition
-│   │   ├── researcher_agent.py <-- Dynamic Tool Orchestration
-│   │   ├── analyst_agent.py    <-- Credibility & confidence scoring
-│   │   ├── writer_agent.py     <-- Academic synthesis
-│   │   ├── verifier_agent.py   <-- Hallucination detection
-│   │   └── helper.py           <-- Utilities (SSE emit, JSON extraction)
-│   ├── tools/                  <-- Real-world interfaces
-│   │   ├── tavily_tool.py      <-- Web Search
-│   │   └── pdf_reader.py       <-- Local PDF context
-│   ├── requirements/           <-- Requirements
-│   │   ├── base.txt            <-- For using
-│   │   └── dev.txt             <-- For developing and testing
-│   ├── tests/                  <-- Unit & Integration suites
-│   ├── params.yaml             <-- DVC: Version controlled Prompts/Models
-│   ├── graph.py                <-- StateGraph definition
-│   ├── main.py                 <-- FastAPI & SSE Streaming logic
-│   ├── Dockerfile              <-- Optimized Python slim build
-│   └── .env                    <-- API keys (GROQ, TAVILY)
-├── frontend/                   
-│   ├── components/             <-- Atomic UI components
-│   │   ├── ChatPanel.tsx       <-- Chat interface
-│   │   ├── ReasoningLog.tsx    <-- Real-time "Thinking" log
-│   │   ├── ArtifactPanel.tsx   <-- Citation & SourceCard display
-│   │   └── ToolCallCard.tsx    <-- Arguments & Output transparency
-│   │   └── SourceCard.tsx      <-- SourceCard display
-│   ├── app/                    <-- Next.js 14 App Router
-│   ├── lib/                    <-- Types, Utils
-│   ├── Dockerfile              <-- Multi-stage production build
-│   └── .env                    <-- API URL configuration
-├── docker-compose.yml          <-- Full-stack orchestration
-└── README.md                   <-- Design Document
-```
+- The core of the system is the **Verifier-Writer Loop**. The Verifier agent acts as a "hard-nosed editor," auditing the Writer’s draft against the raw source material. If the confidence score is low or contradictions are found, the state is routed back for revision—ensuring the final output is factually bulletproof.
+- Unlike static pipelines, the **Researcher Agent** functions as a dispatcher. It analyzes the intent of each sub-query to decide the optimal source: fetching "breaking news" via **Tavily**, or extracting "technical specs" from user-uploaded **PDFs**.
 
 
-### The Pipeline Architecture:
-```mermaid
-graph TD
-%% Agents and Tools %%
-    A(User: Question & Files) -->|1. Submit Query| B(Planner Agent: GPT-OSS 20B)
-    B -->|2. Generate sub-questions| C{Researcher: Tool Orchestrator}
-    
-%% Tool can be selected %%
-    subgraph Tools
-        C -.->|3a. Has PDFs?| D[PDF Reader]
-        C -.->|3b. Historical Data| E[Tavily Web Search]
-        C -.->|3c. Academic Paper| F[Exa/ArXiv Search]
-    end
-    
-    D -->|4. Text Chunks| G(Data Accumulator)
-    E -->|4. Web Pages| G
-    F -->|4. Academic Findings| G
-    
-    G -->|5.1 Raw Sources| H(Analyst Agent: Qwen 3.5 32B)
-    H -->|5.2 Low Confident| C
-    
-%% Verifier %%
-    H -->|6. Key Findings & Confidence| I(Writer Agent: GPT-OSS 120B)
-    I -->|7. Draft Report| J(Verifier Agent: GPT-OSS 120B)
-    
-%% Logic Verifier %%
-    J -->|8a. No Hallucinations?| K[Publish Node]
-    K -->|9. Final SSE Stream| L(User: Verified Report)
-    
-    J ==>|8b. Factual Error!| I
-    
-    classDef user fill:#E1F5FE,stroke:#01579B,stroke-width:2px;
-    classDef agent fill:#E8F5E9,stroke:#1B5E20,stroke-width:2px,rx:10,ry:10;
-    classDef tool fill:#FFF3E0,stroke:#E65100,stroke-width:2px,stroke-dasharray: 5,5;
-    classDef process fill:#F3E5F5,stroke:#4A148C,stroke-width:1px;
-    classDef error fill:#FFEBEE,stroke:#B71C1C,stroke-width:3px;
-    
-    class A,L user;
-    class B,H,I,J,K agent;
-    class D,E,F tool;
-    class G process;
-    class J error;
-```
-
-1.  **Planner (GPT-OSS 20B):** Decomposes complex queries into 3-5 targeted sub-questions.
-2.  **Researcher (Tool Orchestrator):** Dynamically selects between **Tavily Search**, **ArXiv**, and **PDF Reader** based on query intent.
-3.  **Analyst (Qwen 3.5 32B):** Evaluates source credibility, extracts key findings, and calculates an `overall_confidence` score.
-4.  **Writer (GPT-OSS 120B):** Synthesizes a 500-700 word academic report with inline citations.
-5.  **Verifier (GPT-OSS 120B):** Fact-checks the draft against raw sources. If errors are found, it triggers a **Revision Loop** back to the Writer.
-6.  **Publisher:** Streams the final, verified report to the UI once quality is guaranteed.
-
-
----
+To solve the "AI trust problem," the system features a real-time **Reasoning Log**. Powered by **Server-Sent Events (SSE)**, every thought, tool call, and internal decision is streamed to the UI as it happens. Users aren't just waiting for a result; they are watching the "thinking process" of a digital research team, providing a level of transparency and debuggability rarely seen in standard AI applications.
 
 ## Installation Instructions
 
@@ -121,7 +32,7 @@ conda create -n research-agent python=3.11 -y
 conda activate research-agent
 
 # Install dependencies
-pip install -r backend/requirements.txt
+pip install -r backend/requirements/base.txt
 ```
 
 ### Environment Variables (.env)
@@ -139,7 +50,7 @@ BACKEND_URL=http://localhost:8000
 ```
 
 ### DVC Setup
-We use **DVC (Data Version Control)** to manage our prompt templates and model parameters (`params.yaml`), ensuring experiments are reproducible.
+I use **DVC (Data Version Control)** to manage our prompt templates and model parameters (`params.yaml`), ensuring experiments are reproducible.
 
 ```bash
 # Initialize DVC
@@ -156,7 +67,7 @@ git commit -m "Experiment: Switch Analyst to Qwen 3.5"
 
 ## Model Experimentation & Selection
 
-During development, we benchmarked multiple models on Groq to find the optimal balance between **TPM (Tokens Per Minute)** and **Reasoning Quality**.
+During development, I benchmarked multiple models on Groq to find the optimal balance between **TPM (Tokens Per Minute)** and **Reasoning Quality**.
 
 | Agent | Selected Model | Reasoning |
 | :--- | :--- | :--- |
@@ -175,6 +86,12 @@ During development, we benchmarked multiple models on Groq to find the optimal b
 cd backend
 uvicorn main:app --reload --port 8000
 ```
+or
+```bash
+cd backend
+python main.py
+```
+
 **Frontend:**
 ```bash
 cd frontend
@@ -201,13 +118,16 @@ python -m tests.test_streaming_latency
 
 The system is containerized using **Multi-stage Docker builds** for the Frontend to minimize image size and **Uvicorn** for high-performance Backend serving.
 
-* **CI/CD:** Integrated with GitHub Actions for automated testing via `pytest`.
 * **Scaling:** Stateless FastAPI design allows for horizontal scaling behind a Load Balancer.
 * **Streaming:** Uses **Server-Sent Events (SSE)** with `X-Accel-Buffering: no` to bypass Nginx buffering for real-time UI updates.
 
 ---
 
 ### Key Technical Highlights
-* **Zero-Hallucination Focus:** Implemented a Critic-Correction loop between Writer and Verifier.
+* **Minimize-Hallucination Focus:** Implemented a Critic-Correction loop between Writer and Verifier.
 * **Real-time Transparency:** Built a custom SSE streaming logic for the "Reasoning Log" to show Agent "Thinking" steps.
 * **Tool Orchestration:** Intelligent routing between Web Search and local PDF context.
+
+### Docs
+- [PIPELINE.md](docs/PIPELINE.md) -- Algorithm pipeline
+- [STRUCTURE.md](docs/STRUCTURE.md) -- Project structure
