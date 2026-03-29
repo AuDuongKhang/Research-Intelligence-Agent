@@ -28,7 +28,7 @@ research-intelligence-agent/
 │   │   ├── ArtifactPanel.tsx   <-- Citation & SourceCard display
 │   │   └── ToolCallCard.tsx    <-- Arguments & Output transparency
 │   │   └── SourceCard.tsx      <-- SourceCard display
-│   ├── app/                    <-- Next.js 14 App Router
+│   ├── app/                    <-- Next.js App Router
 │   ├── lib/                    <-- Types, Utils
 │   ├── Dockerfile              <-- Multi-stage production build
 │   └── .env                    <-- API URL configuration
@@ -84,18 +84,18 @@ linkStyle 0,1,2,3,4,5 style flow;
 
 ### Architectural Component Descriptions
 
-#### 1. Client-Side (Frontend - Next.js)
+#### 1. Client-Side (Frontend - [Next.js](https://nextjs.org/))
 * **SSE Client:** Unlike standard REST APIs, the frontend maintains a persistent connection using **Server-Sent Events (SSE)**. This allows the UI to update incrementally as the agents progress, preventing the user from waiting for a single "long-poll" response.
 * **State Management:** Dynamically renders the **Reasoning Log** and **Artifact Panel**. It handles complex string manipulation to ensure that streaming text wraps correctly without breaking the layout.
 
-#### 2. Server-Side (Backend - FastAPI)
+#### 2. Server-Side (Backend - [FastAPI](https://fastapi.tiangolo.com/))
 * **Asynchronous Orchestration:** FastAPI manages the request lifecycle, triggering the **LangGraph** execution in a separate thread/task. It utilizes an internal `asyncio.Queue` to bridge the gap between Agent outputs and the HTTP stream.
 * **Buffer Breaker:** To ensure real-time delivery through proxies (like Nginx), the backend implements a "Buffer Breaker" (2KB padding) to force the data through the network stack immediately.
 
-#### 3. Intelligence Layer (LangGraph & Agents)
+#### 3. Intelligence Layer ([LangGraph](https://www.langchain.com/langgraph) & Agents)
 * **Stateful Workflow:** The **StateGraph** acts as the system's "brain", maintaining a `ResearchState` object that stores everything from raw search results to the final verified report.
 * **The Verifier Loop:** A critical design pattern where the **Verifier Agent** acts as a quality gate. If the score is below the threshold, the state is routed back to the **Writer Agent** for revision, ensuring the final output is grounded in fact.
 
 #### 4. Data Layer (Tools & MLOps)
-* **Hybrid Search:** The system dynamically routes queries between **Tavily (External Web)** and **PyMuPDF (Internal PDF)**, allowing for a comprehensive analysis of both public and private data.
-* **DVC Integration:** Prompts are treated as code artifacts. By using `params.yaml`, we can version-control the "personality" and "logic" of our agents independently of the core application logic.
+* **Hybrid Search:** The system dynamically routes queries between **[Tavily](https://www.tavily.com/) (External Web)** and **[PyMuPDF](https://pymupdf.io/) (Internal PDF)**, allowing for a comprehensive analysis of both public and private data.
+* **[DVC](https://dvc.org/) Integration:** Prompts are treated as code artifacts. By using `params.yaml`, we can version-control the "personality" and "logic" of our agents independently of the core application logic.
