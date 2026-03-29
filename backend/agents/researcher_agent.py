@@ -53,12 +53,24 @@ async def select_tools_for_questions(questions: list[str], has_pdf: bool) -> lis
 async def researcher_node(state: ResearchState) -> ResearchState:
     queue = state["event_queue"]
     has_pdf = len(state.get("pdf_sources", [])) > 0
-    
-    await emit(queue, {"type": "thinking", "agent": "researcher", "content": "Orchestrating tools based on query intent..."})
+    if has_pdf and not state.get("raw_sources"):
+        await emit(queue, {
+            "type":    "thinking",
+            "agent":   "researcher",
+            "content": f"Using {len(state['pdf_sources'])} pre-loaded PDF chunk(s). Skipping web search."
+        })
+        return {**state, "raw_sources": state["pdf_sources"]}
 
+    await emit(queue, {"type": "thinking", "agent": "researcher", "content": "Orchestrating tools based on query intent..."})
+    
     # Select tools for each question (e.g., PDF search vs web search)
     plan = await select_tools_for_questions(state["sub_questions"], has_pdf)
     
+    if isinstance(plan, dict):
+        plan = [plan]
+    elif not plan:
+        plan = [{"question": q, "tool": "web_search"} for q in state["sub_questions"]]
+        
     search_tool = get_search_tool()
     tasks = []
     
