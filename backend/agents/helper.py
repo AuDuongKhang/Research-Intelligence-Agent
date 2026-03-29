@@ -93,7 +93,7 @@ async def _stream_from_queue(queue: asyncio.Queue) -> AsyncGenerator[str, None]:
 def extract_json(text: str):
     """Extracting JSON from a text string may contain markdown"""
     try:
-        match = re.search(r"(\{.*\})", text, re.DOTALL)
+        match = re.search(r"(\[.*\]|\{.*\})", text, re.DOTALL)
         if match:
             return json.loads(match.group(1))
         return json.loads(text)

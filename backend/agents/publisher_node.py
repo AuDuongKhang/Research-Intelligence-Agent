@@ -6,7 +6,7 @@ async def publisher_node(state: ResearchState) -> ResearchState:
     queue = state["event_queue"]
     report = state["final_report"]
     
-    await emit(queue, {"type": "thinking", "agent": "publisher", "content": "Finalizing and publishing report..."})
+    await emit(queue, {"type": "thinking", "agent": "writer", "content": "Finalizing and publishing report..."})
 
     words = report.split(' ')
     for i in range(0, len(words), 5):
